@@ -73,9 +73,14 @@ TARGET_ACTIVE_VERSIONS_KEYS = [u'library', u'draft-branch', u'published-branch']
     default=u'../tubular/tests/prune_test_dataset/dataset.json',
     help=u'file path containing a json representation of test data to use for pruning validation'
 )
+@click.option(
+    u'--remove-original-version', 
+    default=False
+    help=u'indicator of whether or not the original version of a course structure will be removed during pruning'
+)
 @click_log.simple_verbosity_option(default=u'DEBUG')
 @click_log.init()
-def prune_modulestore(connection, version_retention, relink_original, active_version_filter, database_name, testmode_dataset_file):
+def prune_modulestore(connection, version_retention, relink_original, active_version_filter, database_name, testmode_dataset_file, remove_original_version):
     
     # ensure that version_rention 2+
     if version_retention < 2:
@@ -114,7 +119,7 @@ def prune_modulestore(connection, version_retention, relink_original, active_ver
 
     # identify structures that should be deleted
     try:
-        structure_prune_data = get_structures_to_delete(active_versions, structures, db_client, version_retention)        
+        structure_prune_data = get_structures_to_delete(active_versions, structures, db_client, version_retention, remove_original_version)        
     except:
         print("Error occurred while processing structures to delete:", sys.exc_info()[1])
         traceback.print_exc(limit=4, file=sys.stdout)
@@ -369,7 +374,7 @@ def build_activeversion_tree(active_version, structures):
     
     return version_tree
 
-def get_structures_to_delete(active_versions, structures=None, db=None, version_retention=2):
+def get_structures_to_delete(active_versions, structures=None, db=None, version_retention=2, remove_original_version=False):
 
     """
     Generate a list of structures that meet the conditions for pruning and associated visualization
@@ -412,7 +417,9 @@ def get_structures_to_delete(active_versions, structures=None, db=None, version_
 
                         # track the required version: first & last
                         versions_to_retain.extend(version_tree[:2])
-                        versions_to_retain.append(version_tree[-1])
+
+                        if remove_original_version :
+                            versions_to_retain.append(version_tree[-1])
                     
                         # This will extract the mid range of 1 to n+1 version id's from the version_tree
                         versions_to_remove.extend(version_tree[version_retention - 1 : len(version_tree) - 1 ]) 
