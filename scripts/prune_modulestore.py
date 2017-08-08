@@ -68,9 +68,14 @@ TARGET_ACTIVE_VERSIONS_KEYS = [u'library', u'draft-branch', u'published-branch']
     default=u'edxapp',
     help=u'name of the edx database to prune'
 )
+@click.option(
+    u'--testmode-dataset-file', 
+    default=u'../tubular/tests/prune_test_dataset/dataset.json',
+    help=u'file path containing a json representation of test data to use for pruning validation'
+)
 @click_log.simple_verbosity_option(default=u'DEBUG')
 @click_log.init()
-def prune_modulestore(connection, version_retention, relink_original, active_version_filter, database_name):
+def prune_modulestore(connection, version_retention, relink_original, active_version_filter, database_name, testmode_dataset_file):
     
     # ensure that version_rention 2+
     if version_retention < 2:
@@ -78,22 +83,34 @@ def prune_modulestore(connection, version_retention, relink_original, active_ver
 
     # TODO: enable support for loading sample dataset from file system 
     # for test purposes
-    
-    # establish database connection
-    LOG.debug("Establishing database connection")
-    db_client = get_database(connection, database_name)
+    if testmode_dataset_file is not None:
+        
+        LOG.debug("Test Mode Detected: loading datasets from '{0}'".format(testmode_dataset_file))
 
-    # get the data: active versions (courses/library) and accompanying structures
-    # get a dictionary listing all active versions
-    active_versions = get_active_versions(db_client, active_version_filter)
-    LOG.debug("{0} active versions identified.".format(len(active_versions)))
-    
-    # get the accompanying structures
-    start = time.time()
-    filter_enabled = (active_version_filter is not None and len(active_versions) > 0)
-    structures = get_structures(db_client, filter_enabled, active_versions)
-    end = time.time()
-    LOG.debug("{0} associated structure docs identified. Duration={1}".format(len(structures), (end - start)))
+        # load the test data
+        testmode_data = load_testdataset(testmode_dataset_file)
+
+        # we are using test data
+        active_versions = testmode_data[u'active_versions']
+        structures = testmode_data[u'structures']
+
+    else:
+        # we are using live data    
+        # establish database connection
+        LOG.debug("Establishing database connection")
+        db_client = get_database(connection, database_name)
+
+        # get the data: active versions (courses/library) and accompanying structures
+        # get a dictionary listing all active versions
+        active_versions = get_active_versions(db_client, active_version_filter)
+        LOG.debug("{0} active versions identified.".format(len(active_versions)))
+        
+        # get the accompanying structures
+        start = time.time()
+        filter_enabled = (active_version_filter is not None and len(active_versions) > 0)
+        structures = get_structures(db_client, filter_enabled, active_versions)
+        end = time.time()
+        LOG.debug("{0} associated structure docs identified. Duration={1}".format(len(structures), (end - start)))
 
     # identify structures that should be deleted
     try:
@@ -108,10 +125,17 @@ def prune_modulestore(connection, version_retention, relink_original, active_ver
     LOG.debug("{0} structures identified for removal".format(len(structure_prune_candidates)))
 
     try:
-        prune_structures(db_client, structure_prune_candidates)
-        
-        if relink_original == True:
-            relink(db, structures)
+
+        if testmode_dataset_file is not None:
+            # we are pruning the static data instead of the database
+            prune_structures_staticdata(testmode_data, structure_prune_candidates)
+        else:
+            
+            # we are pruning the live data
+            prune_structures(db_client, structure_prune_candidates)
+            
+            if relink_original == True:
+                relink(db, structures)
 
         status_success = 1
 
@@ -122,9 +146,30 @@ def prune_modulestore(connection, version_retention, relink_original, active_ver
     # An exit code of 0 means success and non-zero means failure.
     sys.exit(not status_success)
 
-###################################333
+###################################
 # Support functions 
-###################################333
+###################################
+
+def prune_structures_staticdata(original_dataset, structures_to_remove, output_file="pruned_dataset.json"):
+    
+    print "inside here"
+
+def load_testdataset(dataset_file):
+    
+    """
+    Load the json dataset from the file specified
+    """
+
+    # check if the specified file exists
+    file_exists = os.path.isfile(dataset_file) 
+    if !file_exists:
+        raise IOError("The specified file doesn't exist: {0}".format(dataset_file))
+
+    # load the file
+    with open(dataset_file) as dataset:    
+        data = json.load(dataset)
+
+    return data
 
 def get_query_filter(doc_filter):
 
@@ -366,7 +411,7 @@ def get_structures_to_delete(active_versions, structures=None, db=None, version_
                     if tree_length > version_retention:
 
                         # track the required version: first & last
-                        versions_to_retain.extend(version_tree[0])
+                        versions_to_retain.extend(version_tree[:2])
                         versions_to_retain.append(version_tree[-1])
                     
                         # This will extract the mid range of 1 to n+1 version id's from the version_tree
