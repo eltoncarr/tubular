@@ -30,7 +30,9 @@ from bson.objectid import ObjectId
 
 import click
 import click_log
+import json
 import logging
+import os
 import sys
 import time
 import traceback
@@ -69,19 +71,28 @@ TARGET_ACTIVE_VERSIONS_KEYS = [u'library', u'draft-branch', u'published-branch']
     help=u'name of the edx database to prune'
 )
 @click.option(
-    u'--testmode-dataset-file', 
+    u'--testmode-dataset-file',
     default=u'../tubular/tests/prune_test_dataset/dataset.json',
     help=u'file path containing a json representation of test data to use for pruning validation'
 )
 @click.option(
     u'--remove-original-version', 
-    default=False
+    default=False,
     help=u'indicator of whether or not the original version of a course structure will be removed during pruning'
 )
+@click.option(
+    u'--staticdata-outputfile', 
+    default=False,
+    help=u'indicator of whether or not the original version of a course structure will be removed during pruning'
+)
+
 @click_log.simple_verbosity_option(default=u'DEBUG')
 @click_log.init()
-def prune_modulestore(connection, version_retention, relink_original, active_version_filter, database_name, testmode_dataset_file, remove_original_version):
+def prune_modulestore(connection, version_retention, relink_original, active_version_filter, database_name, testmode_dataset_file, remove_original_version, staticdata_outputfile), :
     
+    # initialize the database client
+    db_client = None
+
     # ensure that version_rention 2+
     if version_retention < 2:
         raise ValueError("Version rention must be at at least 2: origin and active version")
@@ -119,12 +130,11 @@ def prune_modulestore(connection, version_retention, relink_original, active_ver
 
     # identify structures that should be deleted
     try:
-        structure_prune_data = get_structures_to_delete(active_versions, structures, db_client, version_retention, remove_original_version)        
+        structure_prune_data = get_structures_to_delete(active_versions, structures, version_retention, remove_original_version)        
     except:
         print("Error occurred while processing structures to delete:", sys.exc_info()[1])
         traceback.print_exc(limit=4, file=sys.stdout)
         
-
     # prune structures
     structure_prune_candidates = structure_prune_data[u'versions_to_remove']
     LOG.debug("{0} structures identified for removal".format(len(structure_prune_candidates)))
@@ -133,7 +143,7 @@ def prune_modulestore(connection, version_retention, relink_original, active_ver
 
         if testmode_dataset_file is not None:
             # we are pruning the static data instead of the database
-            prune_structures_staticdata(testmode_data, structure_prune_candidates)
+            prune_structures_staticdata(testmode_data, structure_prune_candidates, staticdata_outputfile)
         else:
             
             # we are pruning the live data
@@ -157,7 +167,23 @@ def prune_modulestore(connection, version_retention, relink_original, active_ver
 
 def prune_structures_staticdata(original_dataset, structures_to_remove, output_file="pruned_dataset.json"):
     
-    print "inside here"
+    """
+    Prune the static test data and output the results to the specified output file
+    """
+
+    pruned_staticdata = []
+
+    for structure_doc in original_dataset[u'structures']:
+
+        if structure_doc[u'_id'] not in structures_to_remove:
+            pruned_staticdata.append(structure_doc)
+
+    original_dataset[u'structures'] = pruned_staticdata
+
+    # write the updated dataset
+    with open(output_file, 'w') as outfile:
+        json.dump(original_dataset, outfile)
+
 
 def load_testdataset(dataset_file):
     
@@ -167,7 +193,8 @@ def load_testdataset(dataset_file):
 
     # check if the specified file exists
     file_exists = os.path.isfile(dataset_file) 
-    if !file_exists:
+
+    if not file_exists :
         raise IOError("The specified file doesn't exist: {0}".format(dataset_file))
 
     # load the file
@@ -374,7 +401,7 @@ def build_activeversion_tree(active_version, structures):
     
     return version_tree
 
-def get_structures_to_delete(active_versions, structures=None, db=None, version_retention=2, remove_original_version=False):
+def get_structures_to_delete(active_versions, structures=None, version_retention=2, remove_original_version=False):
 
     """
     Generate a list of structures that meet the conditions for pruning and associated visualization
