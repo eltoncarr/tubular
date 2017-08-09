@@ -27,15 +27,12 @@ https://openedx.atlassian.net/browse/PLAT-697
 
 """
 
-# pylint: disable=invalid-name
 from __future__ import absolute_import
 
 import json
 import logging
 import os
 import sys
-import traceback
-
 import click
 import click_log
 from bson.objectid import ObjectId
@@ -101,6 +98,10 @@ def prune_modulestore(
         test_data_file,
         remove_original_version,
         output_file):
+
+    """
+    Main script entry point for pruning the edxapp modulestore structures
+    """
 
     # initialize the key variables
     db_client = None
@@ -357,16 +358,16 @@ def prune_structures(db, structures_to_remove):
 
 
 # TODO: get this operational
-def relink(db, available_version_list_with_prev_original, list_of_avail_id):
+def relink(db, structures, list_of_avail_id):
 
     """
-    There is ongoing discussions about the need to support relinking modulestore structures
+    There are ongoing discussions about the need to support relinking modulestore structures
     to their original version.
 
-    Keeping this in place as a place holder
+    Keeping this as a place holder
 
     """
-    for each in available_version_list_with_prev_original:
+    for each in structures:
         if each["previous_version"] not in list_of_avail_id and each["previous_version"] is not None:
             to_be_linked_version_id = []
             original_version_id = []
@@ -382,10 +383,6 @@ def relink(db, available_version_list_with_prev_original, list_of_avail_id):
 
         else:
             LOG.debug("Nothing to link in the version {0}".format(each))
-
-    print(db)
-    print(available_version_list_with_prev_original)
-    print(list_of_avail_id)
 
 
 def find_previous_version(lookup_key, lookup_value, structures_list):

@@ -4,10 +4,7 @@ Tests for pruning modulestore
 
 from __future__ import absolute_import
 
-import json
-import logging
 import os
-import sys
 import unittest
 
 
@@ -37,11 +34,15 @@ class TestModuleStorePruning(unittest.TestCase):
     def setUp(self):
         # make sure we remove any residual output file
         # this is defensive
-        self.removeOutputFile()
+
+        super(TestModuleStorePruning, self).setUp()
+
+        self.remove_output_file()
 
     def tearDown(self):
         # make sure we remove any residual output fileimport tubular.jenkins as jenkins
-        self.removeOutputFile()
+        super(TestModuleStorePruning, self).tearDown()
+        self.remove_output_file()
 
     def test_structures_prune(self):
         """
