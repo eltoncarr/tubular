@@ -61,7 +61,7 @@ TARGET_ACTIVE_VERSIONS_KEYS = [u'library', u'draft-branch', u'published-branch']
     help=u'Number of versions to retain for a course/library'
 )
 @click.option(
-    u'--relink',
+    u'--relink-structures',
     default=False,
     help=u'boolean indicator of whether or not to relink the structures to the original version after pruning'
 )
@@ -95,7 +95,7 @@ TARGET_ACTIVE_VERSIONS_KEYS = [u'library', u'draft-branch', u'published-branch']
 def prune_modulestore(
         connection,
         version_retention,
-        relink,
+        relink_structures,
         active_version_filter,
         database_name,
         test_data_file,
@@ -167,7 +167,7 @@ def prune_modulestore(
             # we are pruning the live data
             prune_structures(db_client, structure_prune_candidates)
 
-            if relink:
+            if relink_structures:
                 relink(db_client, structures, None)
 
         status_success = 1
@@ -385,15 +385,20 @@ def relink(db, available_version_list_with_prev_original, list_of_avail_id):
             original_version_id = []
             to_be_linked_version_id.append(each['_id'])
             original_version_id.append(each['original_version'])
-            LOG.debug("{0} version is being linked to {1}".format(to_be_linked_version_id,original_version_id[0]))
-            db.modulestore.structures.update({'_id': {'$in': to_be_linked_version_id}},{'$set': {"previous_version": original_version_id[0]}})
+
+            LOG.debug("{0} version is being linked to {1}".format(to_be_linked_version_id, original_version_id[0]))
+
+            db.modulestore.structures.update(
+                {'_id': {'$in': to_be_linked_version_id}},
+                {'$set': {"previous_version": original_version_id[0]}}
+            )
+
         else:
             LOG.debug("Nothing to link in the version {0}".format(each))
 
     print(db)
     print(available_version_list_with_prev_original)
     print(list_of_avail_id)
-
 
 
 def find_previous_version(lookup_key, lookup_value, structures_list):
