@@ -30,18 +30,16 @@ https://openedx.atlassian.net/browse/PLAT-697
 # pylint: disable=invalid-name
 from __future__ import absolute_import
 
-from os import path
-from pymongo import MongoClient
-from bson.objectid import ObjectId
-
-import click
-import click_log
 import json
 import logging
 import os
 import sys
-import time
 import traceback
+
+import click
+import click_log
+from bson.objectid import ObjectId
+from pymongo import MongoClient
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 LOG = logging.getLogger(__name__)
@@ -63,7 +61,7 @@ TARGET_ACTIVE_VERSIONS_KEYS = [u'library', u'draft-branch', u'published-branch']
     help=u'Number of versions to retain for a course/library'
 )
 @click.option(
-    u'--relink-original',
+    u'--relink',
     default=False,
     help=u'boolean indicator of whether or not to relink the structures to the original version after pruning'
 )
@@ -78,8 +76,8 @@ TARGET_ACTIVE_VERSIONS_KEYS = [u'library', u'draft-branch', u'published-branch']
     help=u'name of the edx database to prune'
 )
 @click.option(
-    u'--testmode-dataset-file',
-    default=u'../tubular/tests/prune_test_dataset/dataset.json',
+    u'--test-data-file',
+    default=None,
     help=u'file path containing a json representation of test data to use for pruning validation'
 )
 @click.option(
@@ -88,21 +86,22 @@ TARGET_ACTIVE_VERSIONS_KEYS = [u'library', u'draft-branch', u'published-branch']
     help=u'indicator of whether or not the original version of a course structure will be removed during pruning'
 )
 @click.option(
-    u'--staticdata-outputfile',
-    default=False,
-    help=u'indicator of whether or not the original version of a course structure will be removed during pruning'
+    u'--output-file',
+    default=u'pruned_dataset.json',
+    help=u'output file of the prune structures for test purposes'
 )
 @click_log.simple_verbosity_option(default=u'DEBUG')
 @click_log.init()
 def prune_modulestore(
         connection,
         version_retention,
-        relink_original,
+        relink,
         active_version_filter,
         database_name,
-        testmode_dataset_file,
+        test_data_file,
         remove_original_version,
-        staticdata_outputfile):
+        output_file):
+
     # initialize the key variables
     db_client = None
     structure_prune_data = None
@@ -114,12 +113,12 @@ def prune_modulestore(
         raise ValueError("Version rention must be at at least 2: origin and active version")
 
     # Support loading sample dataset from file system for test purposes
-    if testmode_dataset_file is not None:
+    if test_data_file is not None:
 
-        LOG.debug("Test Mode Detected: loading datasets from '{0}'".format(testmode_dataset_file))
+        LOG.debug("Test Mode Detected: loading datasets from '{0}'".format(test_data_file))
 
         # load the test data
-        testmode_data = load_testdataset(testmode_dataset_file)
+        testmode_data = load_test_dataset(test_data_file)
 
         # we are using test data
         active_versions = testmode_data[u'active_versions']
@@ -158,16 +157,18 @@ def prune_modulestore(
 
     try:
 
-        if testmode_dataset_file is not None:
+        if test_data_file is not None:
+
             # we are pruning the static data instead of the database
-            prune_structures_staticdata(testmode_data, structure_prune_candidates, staticdata_outputfile)
+            prune_structures_static_data(testmode_data, structure_prune_candidates, output_file)
+
         else:
 
             # we are pruning the live data
             prune_structures(db_client, structure_prune_candidates)
 
-            if relink_original:
-                relink(db, structures, none)
+            if relink:
+                relink(db_client, structures, None)
 
         status_success = 1
 
@@ -183,26 +184,30 @@ def prune_modulestore(
 # Support functions 
 ###################################
 
-def prune_structures_staticdata(original_dataset, structures_to_remove, output_file="pruned_dataset.json"):
+def prune_structures_static_data(original_dataset, structures_to_remove, output_file):
+
     """
     Prune the static test data and output the results to the specified output file
     """
 
-    pruned_staticdata = []
+    LOG.debug("Saving the purged dataset to {0}".format(output_file))
+
+    pruned_static_data = []
 
     for structure_doc in original_dataset[u'structures']:
 
         if structure_doc[u'_id'] not in structures_to_remove:
-            pruned_staticdata.append(structure_doc)
+            pruned_static_data.append(structure_doc)
 
-    original_dataset[u'structures'] = pruned_staticdata
+    original_dataset[u'structures'] = pruned_static_data
 
     # write the updated dataset
     with open(output_file, 'w') as outfile:
         json.dump(original_dataset, outfile)
 
 
-def load_testdataset(dataset_file):
+def load_test_dataset(dataset_file):
+
     """
     Load the json dataset from the file specified
     """
@@ -222,6 +227,7 @@ def load_testdataset(dataset_file):
 
 
 def get_query_filter(doc_filter):
+
     """
     Generate a document filter for bulk querying
     """
@@ -236,10 +242,9 @@ def get_query_filter(doc_filter):
 
 
 def get_active_version_filter(active_version_id_list):
+
     """
     Generate document filter for bulk querying the active version collection
-    :param active_version_id_list:
-    :return:
     """
 
     av_filter = {'$in': []}
@@ -252,6 +257,7 @@ def get_active_version_filter(active_version_id_list):
 
 
 def get_structures_filter(active_version_list):
+
     """
     Generate document filter for bulk querying the structures collection
     """
@@ -269,6 +275,7 @@ def get_structures_filter(active_version_list):
 
 
 def get_active_versions(db, active_version_list=None):
+
     """
     Get all documents from the active_versions collection
     """
@@ -309,6 +316,7 @@ def get_active_versions(db, active_version_list=None):
 
 
 def get_structures(db, filter_enabled, active_versions_list):
+
     """
     Get all documents from the structures collection
     """
@@ -344,6 +352,7 @@ def get_structures(db, filter_enabled, active_versions_list):
 
 
 def prune_structures(db, structures_to_remove):
+
     """
     Prune the specified documents from the structures collection
     """
@@ -362,6 +371,7 @@ def prune_structures(db, structures_to_remove):
 
 # TODO: get this operational
 def relink(db, available_version_list_with_prev_original, list_of_avail_id):
+
     """
     There is ongoing discussions about the need to support relinking modulestore structures
     to their original version. 
@@ -423,6 +433,7 @@ def build_activeversion_tree(active_version, structures):
 
 
 def get_structures_to_delete(active_versions, structures=None, version_retention=2, remove_original_version=False):
+
     """
     Generate a list of structures that meet the conditions for pruning and associated visualization
     """
@@ -489,7 +500,8 @@ def get_structures_to_delete(active_versions, structures=None, version_retention
     return {'versions_to_remove': versions_to_remove, 'version_trees': version_trees}
 
 
-def get_database(connection, database_name="edxapp"):
+def get_database(connection, database_name):
+
     """
     Establish a connection to the database
     """
