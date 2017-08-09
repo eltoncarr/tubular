@@ -374,15 +374,26 @@ def relink(db, available_version_list_with_prev_original, list_of_avail_id):
 
     """
     There is ongoing discussions about the need to support relinking modulestore structures
-    to their original version. 
+    to their original version.
 
     Keeping this in place as a place holder
-    
+
     """
+    for each in available_version_list_with_prev_original:
+        if each["previous_version"] not in list_of_avail_id and each["previous_version"] is not None:
+            to_be_linked_version_id = []
+            original_version_id = []
+            to_be_linked_version_id.append(each['_id'])
+            original_version_id.append(each['original_version'])
+            LOG.debg("{0} version is being linked to {1}".format(to_be_linked_version_id,original_version_id[0]))
+    db.modulestore.structures.update({'_id': {'$in': to_be_linked_version_id}},{'$set': {"previous_version": original_version_id[0]}})
+        else:
+            LOG.debg("Nothing to link in the version {0}".format(each))
 
     print(db)
     print(available_version_list_with_prev_original)
     print(list_of_avail_id)
+
 
 
 def find_previous_version(lookup_key, lookup_value, structures_list):
