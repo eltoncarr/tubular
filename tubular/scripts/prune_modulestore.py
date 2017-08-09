@@ -78,11 +78,6 @@ TARGET_ACTIVE_VERSIONS_KEYS = [u'library', u'draft-branch', u'published-branch']
     help=u'file path containing a json representation of test data to use for pruning validation'
 )
 @click.option(
-    u'--remove-original-version',
-    default=False,
-    help=u'indicator of whether or not the original version of a course structure will be removed during pruning'
-)
-@click.option(
     u'--output-file',
     default=u'pruned_dataset.json',
     help=u'output file of the prune structures for test purposes'
@@ -96,7 +91,6 @@ def prune_modulestore(
         active_version_filter,
         database_name,
         test_data_file,
-        remove_original_version,
         output_file):
 
     """
@@ -145,7 +139,7 @@ def prune_modulestore(
     structure_prune_data = get_structures_to_delete(active_versions,
                                                     structures,
                                                     version_retention,
-                                                    remove_original_version)
+                                                    relink_structures)
 
     # prune structures
     structure_prune_candidates = structure_prune_data[u'versions_to_remove']
@@ -434,7 +428,7 @@ def build_activeversion_tree(active_version, structures):
     return version_tree
 
 
-def get_structures_to_delete(active_versions, structures=None, version_retention=2, remove_original_version=False):
+def get_structures_to_delete(active_versions, structures=None, version_retention=2, relink_structures=False):
 
     """
     Generate a list of structures that meet the conditions for pruning and associated visualization
@@ -477,7 +471,8 @@ def get_structures_to_delete(active_versions, structures=None, version_retention
                         # track the required version: first & last
                         versions_to_retain.extend(version_tree[:2])
 
-                        if remove_original_version:
+                        # if relinking is not required, it is ok to remove the original version
+                        if not relink_structures:
                             versions_to_retain.append(version_tree[-1])
 
                         # This will extract the mid range of 1 to n+1 version id's from the version_tree

@@ -48,6 +48,7 @@ class TestModuleStorePruning(unittest.TestCase):
         """
         Run the structure pruning operation
         """
+
         # stub
         self.assertEqual(True, True)
 
