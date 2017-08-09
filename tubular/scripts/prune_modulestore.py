@@ -107,7 +107,7 @@ def prune_modulestore(
     db_client = None
     structure_prune_data = None
     testmode_data = None
-    status_success = 0
+    operation_status = 0
 
     # ensure that version_rention 2+
     if version_retention < 2:
@@ -156,6 +156,8 @@ def prune_modulestore(
         # we are pruning the static data instead of the database
         prune_structures_static_data(testmode_data, structure_prune_candidates, output_file)
 
+        operation_status = 1
+
     else:
 
         # we are pruning the live data
@@ -164,10 +166,10 @@ def prune_modulestore(
         if relink_structures:
             relink(db_client, structures, None)
 
-    status_success = 1
+        operation_status = 1
 
     # An exit code of 0 means success and non-zero means failure.
-    sys.exit(not status_success)
+    return operation_status
 
 
 ###################################
