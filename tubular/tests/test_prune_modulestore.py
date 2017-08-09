@@ -1,5 +1,5 @@
 """
-Tests for pruning modulestore. 
+Tests for pruning modulestore
 """
 
 from __future__ import absolute_import
@@ -43,7 +43,6 @@ class TestModuleStorePruning(unittest.TestCase):
         self.removeOutputFile()
 
     def testPrune(self):
-        
         # stub
         self.assertEqual(True, True)
 

@@ -10,7 +10,7 @@ mongo database.
 This script prunes the modulestore structures using the parameters specified.
 
 The final product will support:
-    1. dry-run: 
+    1. dry-run:
     2. prune targeted course/active version
     3. prune all active versions
     4. support tests via static data
@@ -125,7 +125,7 @@ def prune_modulestore(
         structures = testmode_data[u'structures']
 
     else:
-        # we are using live data    
+        # we are using live data
         # establish database connection
         LOG.debug("Establishing database connection")
         db_client = get_database(connection, database_name)
@@ -181,7 +181,7 @@ def prune_modulestore(
 
 
 ###################################
-# Support functions 
+# Support functions
 ###################################
 
 def prune_structures_static_data(original_dataset, structures_to_remove, output_file):
@@ -341,9 +341,10 @@ def get_structures(db, filter_enabled, active_versions_list):
         resultset = db.modulestore.structures.find(structure_filter, fields)
 
     for structure_doc in resultset:
-        """ 
+
+        """
         Get a list of all structures (or those relevant to the active versions via specified filter)
-        This will give the list of Dictionary's with _id and previous_version 
+        This will give the list of Dictionary's with _id and previous_version
         """
 
         structures_list.append(structure_doc)
@@ -485,7 +486,7 @@ def get_structures_to_delete(active_versions, structures=None, version_retention
                         str(active_version['_id']))
                     )
 
-                    # if the tree exceeds the minimum number of elements, 
+                    # if the tree exceeds the minimum number of elements,
                     # identify tree elements that should be removed
                     if tree_length > version_retention:
 
