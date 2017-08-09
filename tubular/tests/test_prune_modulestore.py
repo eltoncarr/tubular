@@ -10,8 +10,6 @@ import os
 import sys
 import unittest
 
-import tubular.scripts.prune_modulestore as pruning_script
-
 
 class TestModuleStorePruning(unittest.TestCase):
     u"""
@@ -24,7 +22,10 @@ class TestModuleStorePruning(unittest.TestCase):
     # input file: static dataset
     input_file = u"test_prune_modulestore_data.json"
 
-    def removeOutputFile(self):
+    def remove_output_file(self):
+        """
+        Removes residual test output
+        """
         # check if the specified file exists
         file_exists = os.path.isfile(self.output_file)
 
@@ -42,7 +43,10 @@ class TestModuleStorePruning(unittest.TestCase):
         # make sure we remove any residual output fileimport tubular.jenkins as jenkins
         self.removeOutputFile()
 
-    def testPrune(self):
+    def test_structures_prune(self):
+        """
+        Run the structure pruning operation
+        """
         # stub
         self.assertEqual(True, True)
 

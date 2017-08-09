@@ -483,8 +483,7 @@ def get_structures_to_delete(active_versions, structures=None, version_retention
                         counter,
                         target_key,
                         len(version_tree),
-                        str(active_version['_id']))
-                    )
+                        str(active_version['_id'])))
 
                     # if the tree exceeds the minimum number of elements,
                     # identify tree elements that should be removed
