@@ -141,40 +141,29 @@ def prune_modulestore(
         LOG.debug("{0} associated structure docs identified".format(len(structures)))
 
     # identify structures that should be deleted
-    try:
-        structure_prune_data = get_structures_to_delete(active_versions,
-                                                        structures,
-                                                        version_retention,
-                                                        remove_original_version)
-
-    except:
-        print("Error occurred while processing structures to delete:", sys.exc_info()[1])
-        traceback.print_exc(limit=4, file=sys.stdout)
+    structure_prune_data = get_structures_to_delete(active_versions,
+                                                    structures,
+                                                    version_retention,
+                                                    remove_original_version)
 
     # prune structures
     structure_prune_candidates = structure_prune_data[u'versions_to_remove']
     LOG.debug("{0} structures identified for removal".format(len(structure_prune_candidates)))
 
-    try:
+    if test_data_file is not None:
 
-        if test_data_file is not None:
+        # we are pruning the static data instead of the database
+        prune_structures_static_data(testmode_data, structure_prune_candidates, output_file)
 
-            # we are pruning the static data instead of the database
-            prune_structures_static_data(testmode_data, structure_prune_candidates, output_file)
+    else:
 
-        else:
+        # we are pruning the live data
+        prune_structures(db_client, structure_prune_candidates)
 
-            # we are pruning the live data
-            prune_structures(db_client, structure_prune_candidates)
+        if relink_structures:
+            relink(db_client, structures, None)
 
-            if relink_structures:
-                relink(db_client, structures, None)
-
-        status_success = 1
-
-    except:
-        print("Error pruning the database:", sys.exc_info()[1])
-        traceback.print_exc(limit=4, file=sys.stdout)
+    status_success = 1
 
     # An exit code of 0 means success and non-zero means failure.
     sys.exit(not status_success)
@@ -342,11 +331,8 @@ def get_structures(db, filter_enabled, active_versions_list):
 
     for structure_doc in resultset:
 
-        """
-        Get a list of all structures (or those relevant to the active versions via specified filter)
-        This will give the list of Dictionary's with _id and previous_version
-        """
-
+        # Get a list of all structures (or those relevant to the active versions via specified filter)
+        # this will give the list of Dictionary's with _id and previous_version
         structures_list.append(structure_doc)
 
     return structures_list
