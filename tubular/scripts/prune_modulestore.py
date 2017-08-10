@@ -368,14 +368,14 @@ def prune_structures(db, structures_to_remove):
     return db.modulestore.structures.remove({'_id': structures_removal_filter})
 
 
-# TODO: get this operational
+# TODO: get this fully operational. Test against static data is ready.
 def relink(db, structures):
 
     """
     There are ongoing discussions about the need to support relinking modulestore structures
     to their original version.
 
-    Keeping this as a place holder
+    Keeping this as a place holder.
 
     """
 
@@ -385,8 +385,7 @@ def relink(db, structures):
     available_ids = []
 
     # build a list of all available ids
-    for structure_doc in structures:
-        available_ids.append(str(structure_doc[u'_id']))
+    available_ids.extend([structure_doc['_id'] for structure_doc in structures])
 
     # iterate structures and relink to original
     for structure_doc in structures:
@@ -426,6 +425,7 @@ def relink(db, structures):
 
 
 def find_previous_version(lookup_key, lookup_value, structures_list):
+
     """
     This function searches all structure documents for the one specified
     """
@@ -440,6 +440,7 @@ def find_previous_version(lookup_key, lookup_value, structures_list):
 
 
 def build_activeversion_tree(active_version, structures):
+
     """
     Build a tree representing the active_version and its tree of ancestors
     from structures
