@@ -161,10 +161,10 @@ def prune_modulestore(
     else:
 
         # we are pruning the live data
-        prune_structures(db_client, structure_prune_candidates)
+        pruned_structures = prune_structures(db_client, structure, structure_prune_candidates)
 
         if relink_structures:
-            relink(db_client, structures)
+            pruned_structures = relink(db_client, pruned_structures)
 
         operation_status = 1
 
@@ -350,7 +350,7 @@ def get_structures(db, filter_enabled, active_versions_list):
     return structures_list
 
 
-def prune_structures(db, structures_to_remove):
+def prune_structures(db, structures, structures_to_remove):
 
     """
     Prune the specified documents from the structures collection
@@ -365,7 +365,13 @@ def prune_structures(db, structures_to_remove):
     for structure_objectid_str in structures_to_remove:
         structures_removal_filter['$in'].append(ObjectId(structure_objectid_str))
 
-    return db.modulestore.structures.remove({'_id': structures_removal_filter})
+    # TODO: validate the requisite number of items were actually deleted
+    db.modulestore.structures.remove({'_id': structures_removal_filter})
+
+    # generate a list representing the state of structures post pruning
+    pruned_dataset = list(set(structures) - set(structures_to_remove))
+
+    return pruned_dataset
 
 
 # TODO: get this fully operational. Test against static data is ready.
