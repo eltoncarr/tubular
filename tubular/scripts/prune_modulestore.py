@@ -148,7 +148,13 @@ def prune_modulestore(
     if test_data_file is not None:
 
         # we are pruning the static data instead of the database
-        prune_structures_static_data(testmode_data, structure_prune_candidates, output_file)
+        pruned_dataset = prune_structures_static_data(testmode_data, structure_prune_candidates)
+
+        if relink_structures:
+            pruned_dataset[u'structures'] = relink(None, pruned_dataset[u'structures'])
+
+        # save the output
+        save_data_file(pruned_dataset, output_file)
 
         operation_status = 1
 
@@ -158,7 +164,7 @@ def prune_modulestore(
         prune_structures(db_client, structure_prune_candidates)
 
         if relink_structures:
-            relink(db_client, structures, None)
+            relink(db_client, structures)
 
         operation_status = 1
 
@@ -170,13 +176,24 @@ def prune_modulestore(
 # Support functions
 ###################################
 
-def prune_structures_static_data(original_dataset, structures_to_remove, output_file):
+def save_data_file(data, output_file):
 
     """
-    Prune the static test data and output the results to the specified output file
+    Save the specified data file to disk
     """
 
     LOG.debug("Saving the purged dataset to {0}".format(output_file))
+
+    # write the updated dataset
+    with open(output_file, 'w') as outfile:
+        json.dump(data, outfile)
+
+
+def prune_structures_static_data(original_dataset, structures_to_remove):
+
+    """
+    Prune the static test data and return the results
+    """
 
     pruned_static_data = []
 
@@ -187,9 +204,7 @@ def prune_structures_static_data(original_dataset, structures_to_remove, output_
 
     original_dataset[u'structures'] = pruned_static_data
 
-    # write the updated dataset
-    with open(output_file, 'w') as outfile:
-        json.dump(original_dataset, outfile)
+    return original_dataset
 
 
 def load_test_dataset(dataset_file):
@@ -354,7 +369,7 @@ def prune_structures(db, structures_to_remove):
 
 
 # TODO: get this operational
-def relink(db, structures, list_of_avail_id):
+def relink(db, structures):
 
     """
     There are ongoing discussions about the need to support relinking modulestore structures
@@ -363,22 +378,51 @@ def relink(db, structures, list_of_avail_id):
     Keeping this as a place holder
 
     """
-    for each in structures:
-        if each["previous_version"] not in list_of_avail_id and each["previous_version"] is not None:
+
+    LOG.debug("Relinking structure to original version")
+
+    index_position = 0
+    available_ids = []
+
+    # build a list of all available ids
+    for structure_doc in structures:
+        available_ids.append(str(structure_doc[u'_id']))
+
+    # iterate structures and relink to original
+    for structure_doc in structures:
+
+        if structure_doc["previous_version"] is not None and structure_doc["previous_version"] not in available_ids:
+            
+            LOG.debug("{0} was not found in {1}".format(structure_doc["previous_version"], available_ids))
+
             to_be_linked_version_id = []
             original_version_id = []
-            to_be_linked_version_id.append(each['_id'])
-            original_version_id.append(each['original_version'])
+
+            to_be_linked_version_id.append(structure_doc['_id'])
+            original_version_id.append(structure_doc['original_version'])
 
             LOG.debug("{0} version is being linked to {1}".format(to_be_linked_version_id, original_version_id[0]))
 
-            db.modulestore.structures.update(
-                {'_id': {'$in': to_be_linked_version_id}},
-                {'$set': {"previous_version": original_version_id[0]}}
-            )
+            # TODO: refactor to support bulk updates for performance concerns
+            if db is not None:
+                
+                # this is a live update session
+                db.modulestore.structures.update(
+                    {'_id': {'$in': to_be_linked_version_id}},
+                    {'$set': {"previous_version": original_version_id[0]}})
+            
+            else:
+                
+                # this is working against static dataset
+                structures[index_position][u'previous_version'] = original_version_id[0]
 
         else:
-            LOG.debug("Nothing to link in the version {0}".format(each))
+            LOG.debug("Nothing to link for structure: {0}".format(structure_doc['_id']))
+        
+        # advance the index position
+        index_position += 1
+    
+    return structures
 
 
 def find_previous_version(lookup_key, lookup_value, structures_list):
