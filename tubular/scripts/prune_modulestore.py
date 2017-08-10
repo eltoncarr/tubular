@@ -392,7 +392,7 @@ def relink(db, structures):
     for structure_doc in structures:
 
         if structure_doc["previous_version"] is not None and structure_doc["previous_version"] not in available_ids:
-            
+
             LOG.debug("{0} was not found in {1}".format(structure_doc["previous_version"], available_ids))
 
             to_be_linked_version_id = []
@@ -405,23 +405,23 @@ def relink(db, structures):
 
             # TODO: refactor to support bulk updates for performance concerns
             if db is not None:
-                
+
                 # this is a live update session
                 db.modulestore.structures.update(
                     {'_id': {'$in': to_be_linked_version_id}},
                     {'$set': {"previous_version": original_version_id[0]}})
-            
+
             else:
-                
+
                 # this is working against static dataset
                 structures[index_position][u'previous_version'] = original_version_id[0]
 
         else:
             LOG.debug("Nothing to link for structure: {0}".format(structure_doc['_id']))
-        
+
         # advance the index position
         index_position += 1
-    
+
     return structures
 
 
