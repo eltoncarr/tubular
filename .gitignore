@@ -8,8 +8,6 @@ __pycache__/
 # Distribution / packaging
 .Python
 .vscode
-.idea
-venv/
 env/
 build/
 develop-eggs/
@@ -60,4 +58,3 @@ target/
 
 # vim
 .*.swp
-
